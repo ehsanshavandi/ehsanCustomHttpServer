@@ -6,7 +6,7 @@ and express what provides us
 
 ## Installation
 
-Install my-project with npm
+Install ehsanCustomHttpServer with npm
 
 ```bash
   git clone https://github.com/ehsanshavandi/ehsanCustomHttpServer.git && cd ehsanCustomHttpServer
