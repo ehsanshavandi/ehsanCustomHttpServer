@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Controller/controller.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Controller/controller.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const fs            = require('fs');
+const Test          = require('../Models/test');
+const helper        = require('../Helper/helper');
+const logger        = require('../Log/logger');
+
+
+/**
+ * index controller
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {boolean}
+ */
+let index = (req, res) => {
+    res.end('&lt;html>&lt;head>&lt;body>&lt;h1> Hello This is index&lt;/h1>&lt;/body>&lt;/head>&lt;/html>');
+    logger.info(`response code: ${res.statusCode}`);
+    return true;
+}
+
+/**
+ * static controller
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {boolean}
+ */
+let mySelfStatic = (req, res) => {
+    fs.createReadStream('./public/static.html').pipe(res);
+    logger.info(`response code: ${res.statusCode}`);
+    return true;
+}
+
+// Creating CRUD with MongoDB
+/**
+ * CRUD controller, Create
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {Promise&lt;unknown | boolean>}
+ */
+let create = (req, res) => {
+    return helper.bodyParser(req)
+        .then(bodyAndParams=>{
+                if (bodyAndParams.body.name.match(/^[a-zA-Z]{5,30}$/) &amp;&amp; bodyAndParams.body.id.match(/^[0-9]+$/)){
+                    let test = new Test({
+                        name: bodyAndParams.body.name,
+                        id: bodyAndParams.body.id
+                    });
+                    return test.save()
+                        .then(saved=>{
+                            helper.responseService(res, 200, 'json', "created successfully");
+                            return true;
+                        })
+                        .catch(error=>{
+                            helper.responseService(res, 500, 'json', "database error");
+                            return true;
+                        })
+                }
+                else {
+                    helper.responseService(res, 422, 'json', "validation errors");
+                    return true;
+                }
+            })
+        .catch(error=>{
+            helper.responseService(res, 500, 'json', "Internally error");
+            return true;
+        })
+
+}
+
+/**
+ * CRUD controller,read
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {Promise&lt;T | boolean>}
+ */
+let read = (req, res) => {
+    return Test.find().exec()
+        .then(allDoc => {
+            helper.responseService(res, 200, 'json', null, allDoc);
+            return true;
+        })
+        .catch(err => {
+            helper.responseService(res, 500, 'json', "Internally error");
+            return true;
+        })
+}
+
+/**
+ * CRUD controller,update
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {Promise&lt;unknown>}
+ */
+let updateOne = (req, res) => {
+    return helper.bodyParser(req)
+        .then(bodyAndParams => {
+            if (
+                bodyAndParams.body.name.match(/^[a-zA-Z]{5,30}$/)
+                &amp;&amp;
+                bodyAndParams.body.id.match(/^[0-9]+$/)
+                &amp;&amp;
+                bodyAndParams.params[1].match(/^[a-zA-Z0-9]{24}$/)
+            )
+            { return Test.findOneAndUpdate(bodyAndParams.params[1],
+                { name: bodyAndParams.body.name, id: bodyAndParams.body.id },
+                {new: false})
+                .exec()
+                .then(saved => {
+                    helper.responseService(res, 200, 'json', "successfully update");
+                    return true;
+                })
+                .catch(err => {
+                    helper.responseService(res, 500, 'json', "Internally error");
+                    return true;
+                });
+            } else {
+                helper.responseService(res, 422, 'json', "validation error");
+                return true;
+            }
+        })
+}
+
+/**
+ * CRUD controller,delete
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {Promise&lt;unknown>}
+ */
+let deleteOne = (req, res) => {
+    return helper.bodyParser(req)
+        .then(bodyAndParams => {
+            if (bodyAndParams.params[1].match(/^[a-zA-Z0-9]{24}/)) {
+                return Test.findByIdAndDelete(bodyAndParams.params[1]).exec()
+                    .then(deleted => {
+                        helper.responseService(res, 200, 'json', "successfully deleted");
+                        return true;
+                    })
+                    .catch(err => {
+                        helper.responseService(res, 500, 'json', "database error");
+                        return true;
+                    })
+            } else {
+                helper.responseService(res, 422, 'json', "Validation error");
+                return true;
+            }
+        })
+        .catch(error => {
+            helper.responseService(res, 500, 'json', "Internal error");
+        })
+
+}
+
+
+
+//404 page: Not Found
+/**
+ * Not found page controller
+ * @param req {httpRequest}
+ * @param res {httpResponse}
+ * @returns {Promise&lt;boolean>}
+ */
+let notFound = (req, res) => {
+    return helper.bodyParser(req)
+        .then(bodyAndParams =>{
+            helper.responseService(res, 404, 'json', "Not Found");
+            return true;
+        })
+}
+
+
+/**
+ * @type {{read: (function(*, *=): Promise&lt;T | boolean>), deleteOne: (function(*=, *=): Promise&lt;unknown>), index: (function(*, *): boolean), create: (function(*=, *=): Promise&lt;unknown | boolean>), notFound: (function(*=, *=): Promise&lt;boolean>), updateOne: (function(*=, *=): Promise&lt;unknown>), mySelfStatic: (function(*, *=): boolean)}}
+ */
+module.exports = {
+    index, mySelfStatic, create, read, updateOne, deleteOne, notFound
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-helper.html">helper</a></li></ul><h3>Global</h3><ul><li><a href="global.html#create">create</a></li><li><a href="global.html#customHeaders">customHeaders</a></li><li><a href="global.html#deleteOne">deleteOne</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#index">index</a></li><li><a href="global.html#loggerMiddleware">loggerMiddleware</a></li><li><a href="global.html#matching">matching</a></li><li><a href="global.html#mySelfStatic">mySelfStatic</a></li><li><a href="global.html#notFound">notFound</a></li><li><a href="global.html#read">read</a></li><li><a href="global.html#registerroutes">register routes</a></li><li><a href="global.html#testSchema">testSchema</a></li><li><a href="global.html#updateOne">updateOne</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Sat Jul 11 2020 22:02:50 GMT+0430 (Iran Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
